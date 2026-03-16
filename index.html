@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SolidWorks Piston Macro Generator</title>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #333; }
+        .piston-image {
+            max-width: 100%; height: auto; margin-bottom: 20px;
+            border: 1px solid #ddd; border-radius: 5px;
+            display: block; margin-left: auto; margin-right: auto;
+        }
+        fieldset { margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px; padding: 15px; }
+        legend { font-weight: bold; color: #0056b3; }
+        .form-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        label { flex: 1; margin-right: 10px; color: #555; font-size: 14px; font-weight: bold; }
+        input[type="number"] { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        .btn-generate {
+            width: 100%; padding: 12px; background-color: #0056b3; color: white;
+            border: none; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold;
+        }
+        .btn-generate:hover { background-color: #004494; }
+        
+        #macroOutput {
+            margin-top: 20px; padding: 15px; background: #2d2d2d; color: #f8f8f2;
+            border-radius: 5px; display: none; position: relative;
+        }
+        .btn-copy {
+            position: absolute; top: 15px; right: 15px; padding: 8px 15px;
+            background-color: #28a745; color: white; border: none; border-radius: 4px;
+            cursor: pointer; font-weight: bold;
+        }
+        .btn-copy:hover { background-color: #218838; }
+        pre { font-family: Consolas, monospace; font-size: 14px; overflow-x: auto; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>SolidWorks Piston Macro Generator</h2>
+        
+        <form id="pistonForm">
+            <fieldset>
+                <legend>Side View Dimensions (Fig 1)</legend>
+                <img src="pistonFig1.png" width="500" height="250" alt="Piston Side View" class="piston-image">
+                <div class="form-group"><label>Total Piston Height (H):</label><input type="number" id="dim_H" step="any" value="50" required></div>
+                <div class="form-group"><label>Top Land (a):</label><input type="number" id="dim_a" step="any" value="5" required></div>
+                <div class="form-group"><label>Ring Groove Width (b):</label><input type="number" id="dim_b" step="any" value="2" required></div>
+                <div class="form-group"><label>Ring Land/Spacing (c):</label><input type="number" id="dim_c" step="any" value="3" required></div>
+                <div class="form-group"><label>Pin Hole Diameter (d):</label><input type="number" id="dim_d" step="any" value="15" required></div>
+                <div class="form-group"><label>Pin Hole Center (h):</label><input type="number" id="dim_h" step="any" value="20" required></div>
+                <div class="form-group"><label>Dome Height (i):</label><input type="number" id="dim_i" step="any" value="2" required></div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Bottom View Dimensions (Fig 2)</legend>
+                <img src="pistonFig2.png" width="500" height="250" alt="Piston Bottom View" class="piston-image">
+                <div class="form-group"><label>Outer Diameter (O):</label><input type="number" id="dim_O" step="any" value="60" required></div>
+                <div class="form-group"><label>Inner Diameter (G):</label><input type="number" id="dim_G" step="any" value="50" required></div>
+                <div class="form-group"><label>Distance Between Pin Bosses (F):</label><input type="number" id="dim_F" step="any" value="25" required></div>
+                <div class="form-group"><label>Pin Boss Outer Dia (E):</label><input type="number" id="dim_E" step="any" value="22" required></div>
+            </fieldset>
+
+            <button type="button" class="btn-generate" onclick="generateMacro()">Generate SolidWorks Macro</button>
+        </form>
+
+        <div id="macroOutput">
+            <button class="btn-copy" onclick="copyMacro()">Copy Code</button>
+            <h3 style="margin-top: 0; color: #a6e22e;">VBA Macro Code:</h3>
+            <pre id="vbaCodeBlock"></pre>
+        </div>
+    </div>
+
+    <script>
+        function generateMacro() {
+            // fro HTML input 
+            const H = document.getElementById('dim_H').value;
+            const a = document.getElementById('dim_a').value;
+            const b = document.getElementById('dim_b').value;
+            const c = document.getElementById('dim_c').value;
+            const d = document.getElementById('dim_d').value;
+            const h = document.getElementById('dim_h').value;
+            const i = document.getElementById('dim_i').value;
+            const O = document.getElementById('dim_O').value;
+            const G = document.getElementById('dim_G').value;
+            const F = document.getElementById('dim_F').value;
+            const E = document.getElementById('dim_E').value;
+            const macroTemplate = `' SolidWorks VBA Macro for Piston Generation
+' Generated Automatically
+
+Option Explicit
+
+' Global variable
+
+Dim swApp As SldWorks.SldWorks
+Dim swModel As SldWorks.ModelDoc2
+Dim swSketchMgr As SldWorks.SketchManager
+Dim swFeatMgr As SldWorks.FeatureManager
+Dim swExt As SldWorks.ModelDocExtension
+
+Sub main()
+    Set swApp = Application.SldWorks
+    
+    ' Piston Parameters All in mm
+
+    ' --- User Input Dimensions (mm) ---
+    Dim val_H As Double: val_H = ${H}
+    Dim val_a As Double: val_a = ${a}
+    Dim val_b As Double: val_b = ${b}
+    Dim val_c As Double: val_c = ${c}
+    Dim val_d As Double: val_d = ${d}
+    Dim val_Hh As Double: val_Hh = ${h}
+    Dim val_i As Double: val_i = ${i}
+    Dim val_O As Double: val_O = ${O}
+    Dim val_G As Double: val_G = ${G}
+    Dim val_F As Double: val_F = ${F}
+    Dim val_E As Double: val_E = ${E}
+    
+    Dim piston_bore As Double: piston_bore = val_O
+    Dim piston_height As Double: piston_height = val_H
+    Dim piston_pin_dia As Double: piston_pin_dia = val_d
+    Dim piston_pin_center As Double: piston_pin_center = val_Hh
+    Dim piston_thickness As Double: piston_thickness = (val_O - val_G)/2
+    Dim dome_height As Double: dome_height = val_i
+    Dim ring_thickness As Double: ring_thickness = val_b
+    Dim ring_distance_from_top As Double: ring_distance_from_top = val_a
+    Dim ring_land_depth As Double: ring_land_depth = val_b
+    Dim ring_spacing As Double: ring_spacing = val_c
+    Dim distance_between_pinHolder As Double: distance_between_pinHolder = val_F
+
+    ' create new part
+    
+    Dim template_path As String
+    template_path = swApp.GetUserPreferenceStringValue(swUserPreferenceStringValue_e.swDefaultTemplatePart)
+    Set swModel = swApp.NewDocument(template_path, 0, 0, 0)
+    
+    Set swExt = swModel.Extension
+    Set swSketchMgr = swModel.SketchManager
+    Set swFeatMgr = swModel.FeatureManager
+    
+    ' 1.(Base Extrude)
+    SelectPlaneAndStartSketch "Top Plane"
+    DrawCircle 0, 0, piston_bore / 2
+    Extrude piston_height
+    SetIsometricView
+    
+    ' 2.(Inner Cut)
+    SelectPlaneAndStartSketch "Top Plane"
+    DrawCircle 0, 0, (piston_bore / 2) - piston_thickness
+    CutFromSketch piston_height - piston_thickness
+    SetIsometricView
+    
+    ' 3.(Pin Hole Cut)
+    SelectPlaneAndStartSketch "Right Plane"
+    DrawCircleWithCenter 0, piston_pin_center, piston_pin_dia / 2
+    swSketchMgr.InsertSketch True
+    CutFromSketchConditional 6, 0, piston_bore * 2, 0, "Sketch3", False
+    
+    ' 4.(Pin Holder Boss)
+    SelectPlaneAndStartSketch "Right Plane"
+    DrawCircleWithCenter 0, piston_pin_center, piston_pin_dia / 2
+    DrawCircleWithCenter 0, piston_pin_center, (piston_pin_dia / 2) + piston_thickness
+    ExtrudeOffsetStartUpToNext distance_between_pinHolder / 2, piston_bore / 2, True, False, False
+    swSketchMgr.InsertSketch True
+    
+    SelectPlaneAndStartSketch "Right Plane"
+    DrawCircleWithCenter 0, piston_pin_center, piston_pin_dia / 2
+    DrawCircleWithCenter 0, piston_pin_center, (piston_pin_dia / 2) + piston_thickness
+    ExtrudeOffsetStartUpToNext distance_between_pinHolder / 2, piston_bore / 2, True, True, True
+    swSketchMgr.InsertSketch True
+    
+    ' 5.(Ring Land Cut)
+    SelectPlaneAndStartSketch "Top Plane"
+    DrawCircle 0, 0, (piston_bore / 2) - ring_land_depth
+    CutFromSketchConditional 0, 3, ring_thickness, piston_height - ring_distance_from_top - ring_thickness, "Sketch6", True
+    CutFromSketchConditional 0, 3, ring_thickness, piston_height - ring_distance_from_top - ring_thickness - ring_spacing - ring_thickness, "Sketch6", True
+    CutFromSketchConditional 0, 3, ring_thickness, piston_height - ring_distance_from_top - 2 * (ring_thickness + ring_spacing) - ring_thickness, "Sketch6", True
+    
+    ' 6.(Dome Feature)
+    InsertDomeByRayPrecise dome_height, piston_height
+    SetIsometricView
+    
+    ' 7.(Outer Clear Cut)
+    CutFromSketchConditional 0, 0, piston_height, 0, "Sketch1", True
+    SetIsometricView
+    
+    MsgBox "Piston generation completed successfully!", vbInformation, "Automation Status"
+End Sub
+
+' --- (Helper Functions) ---
+
+Sub SetIsometricView()
+    swModel.ShowNamedView2 "*Isometric", -1
+    swModel.ViewZoomtofit2
+End Sub
+
+Sub SelectPlaneAndStartSketch(plane_name As String)
+    swExt.SelectByID2 plane_name, "PLANE", 0, 0, 0, False, 0, Nothing, 0
+    swSketchMgr.InsertSketch True
+End Sub
+
+Sub DrawCircle(cen_x_mm As Double, cen_y_mm As Double, radius_mm As Double)
+    Dim r_m As Double: r_m = radius_mm / 1000
+    Dim cx_m As Double: cx_m = cen_x_mm / 1000
+    Dim cy_m As Double: cy_m = cen_y_mm / 1000
+    swSketchMgr.CreateCircle cx_m, cy_m, 0, cx_m, cy_m + r_m, 0
+End Sub
+
+Sub DrawCircleWithCenter(cen_x_mm As Double, cen_y_mm As Double, radius_mm As Double)
+    DrawCircle cen_x_mm, cen_y_mm, radius_mm
+End Sub
+
+Sub Extrude(height_mm As Double)
+    Dim height_m As Double: height_m = height_mm / 1000
+    swFeatMgr.FeatureExtrusion2 True, False, False, 0, 0, height_m, 0, False, False, False, False, 0, 0, False, False, False, False, True, True, True, 0, 0, False
+End Sub
+
+Sub CutFromSketch(depth_mm As Double)
+    Dim depth_m As Double: depth_m = depth_mm / 1000
+    swFeatMgr.FeatureCut4 True, False, True, 0, 0, depth_m, 0.01, False, False, False, False, 0.01745, 0.01745, False, False, False, False, False, True, True, True, True, False, 0, 0, False, False
+End Sub
+
+Sub ExtrudeOffsetStartUpToNext(start_offset_mm As Double, end_depth_mm As Double, flip_direc1 As Boolean, flip_direc2 As Boolean, flip_both As Boolean)
+    Dim start_offset_m As Double: start_offset_m = start_offset_mm / 1000
+    Dim end_depth_m As Double: end_depth_m = end_depth_mm / 1000
+    swFeatMgr.FeatureExtrusion2 flip_direc1, False, flip_both, 0, 1, end_depth_m, 0.01, False, False, False, False, 0.01, 0.01, False, False, False, False, True, True, True, 3, start_offset_m, flip_direc2
+    swModel.SelectionManager.EnableContourSelection = False
+End Sub
+
+Sub CutFromSketchConditional(end_condition As Integer, start_condition As Integer, depth_mm_end As Double, depth_mm_start As Double, sketch_name As String, flip_cut As Boolean)
+    Dim depth_m_end As Double: depth_m_end = depth_mm_end / 1000
+    Dim depth_m_start As Double: depth_m_start = depth_mm_start / 1000
+    
+    swExt.SelectByID2 sketch_name, "SKETCH", 0, 0, 0, False, 0, Nothing, 0
+    swFeatMgr.FeatureCut4 True, flip_cut, True, end_condition, 0, depth_m_end, 0.01, False, False, False, False, 0.01745, 0.01745, False, False, False, False, False, True, True, True, True, False, start_condition, depth_m_start, False, False
+End Sub
+
+Sub InsertDomeByRayPrecise(dome_height_mm As Double, height_mm As Double)
+    Dim dome_height_m As Double: dome_height_m = dome_height_mm / 1000
+    Dim height_m As Double: height_m = height_mm / 1000
+    
+    swModel.ClearSelection2 True
+    swExt.SelectByRay 0, height_m, 0, 0, -1, 0, 0.0003, 2, False, 1, 0
+    swModel.InsertDome dome_height_m, False, False
+End Sub
+`;
+
+            // Showing Generated Code 
+            document.getElementById('vbaCodeBlock').textContent = macroTemplate;
+            document.getElementById('macroOutput').style.display = 'block';
+        }
+
+        // Copy Code function
+        function copyMacro() {
+            const codeText = document.getElementById('vbaCodeBlock').textContent;
+            navigator.clipboard.writeText(codeText).then(() => {
+                alert("Macro code copied to clipboard! Paste it in SolidWorks VBA Editor.");
+            }).catch(err => {
+                console.error("Failed to copy text: ", err);
+            });
+        }
+    </script>
+</body>
+</html>
